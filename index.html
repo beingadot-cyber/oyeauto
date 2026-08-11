@@ -1293,12 +1293,6 @@ a:focus-visible{
     },
 
     {
-      file:"Salaam-E-Ishq_Meri_Jaan_-_Gangs_of_Wasseypur_1___HD___720p(256k).mp3.mpeg",
-      title:"Salaam-E-Ishq Meri Jaan",
-      artist:"Gangs of Wasseypur"
-    },
-
-    {
       file:"Sanun_Nahar_Wale_Pool(0).mp3.mpeg",
       title:"Sanun Nahar Wale Pool",
       artist:"Punjabi Classic"
@@ -1458,10 +1452,7 @@ a:focus-visible{
 
   function getSongURL(file){
 
-    return (
-      "songs/" +
-      encodeURI(file)
-    );
+    return encodeURI(file);
 
   }
 
@@ -1845,12 +1836,7 @@ a:focus-visible{
     }
 
 
-    if(
-      !audio.src ||
-      audio.src.indexOf(
-        "/songs/"
-      ) === -1
-    ){
+    if(!audio.src){
 
       loadSong(
         currentIndex,
