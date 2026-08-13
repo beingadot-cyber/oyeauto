@@ -212,12 +212,59 @@ a{
 }
 
 /* ================================
+   PLAYLIST TOGGLE BUTTON
+================================ */
+
+.playlist-toggle-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:9px 18px;
+  border-radius:999px;
+  border:1px solid var(--glass-border-hi);
+  background:var(--glass-fill-soft);
+  backdrop-filter:blur(14px) saturate(140%);
+  -webkit-backdrop-filter:blur(14px) saturate(140%);
+  color:var(--cream);
+  font-family:'Teko',sans-serif;
+  font-size:16px;
+  font-weight:600;
+  letter-spacing:.04em;
+  cursor:pointer;
+  box-shadow:var(--shadow-deep);
+  transition:background .18s ease,border-color .18s ease,transform .12s ease;
+}
+
+.playlist-toggle-btn:hover{
+  background:rgba(244,233,211,.14);
+  border-color:rgba(242,193,101,.38);
+  transform:translateY(-1px);
+}
+
+.playlist-toggle-btn:active{
+  transform:scale(.98);
+}
+
+.playlist-toggle-btn svg{
+  width:16px;
+  height:16px;
+  flex:none;
+  transition:transform .3s ease;
+}
+
+.playlist-toggle-btn.is-open svg{
+  transform:rotate(90deg);
+}
+
+/* ================================
    SONG SELECTION
 ================================ */
 
 .song-selector{
   width:100%;
-  max-height:min(42vh,390px);
+  max-height:0;
   display:flex;
   flex-direction:column;
   border-radius:20px;
@@ -227,6 +274,15 @@ a{
   -webkit-backdrop-filter:blur(22px) saturate(160%);
   box-shadow:var(--shadow-deep),inset 0 1px 0 rgba(255,255,255,.06);
   overflow:hidden;
+  opacity:0;
+  pointer-events:none;
+  transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s ease;
+}
+
+.song-selector.is-open{
+  max-height:min(42vh,390px);
+  opacity:1;
+  pointer-events:all;
 }
 
 .song-selector-header{
@@ -285,7 +341,10 @@ a{
 
 .song-list::-webkit-scrollbar{width:5px;}
 .song-list::-webkit-scrollbar-track{background:transparent;}
-.song-list::-webkit-scrollbar-thumb{background:rgba(242,193,101,.38);border-radius:999px;}
+.song-list::-webkit-scrollbar-thumb{
+  background:rgba(242,193,101,.38);
+  border-radius:999px;
+}
 
 .song-item{
   width:100%;
@@ -824,11 +883,11 @@ a{
     bottom:10px;
   }
 
-  .song-selector{
+  .song-selector.is-open{
     max-height:39vh;
-    border-radius:16px;
   }
 
+  .song-selector{border-radius:16px;}
   .song-selector-header{padding:10px 12px;}
   .song-selector-title{font-size:18px;}
   .song-list{padding:5px;}
@@ -887,7 +946,10 @@ a{
 
   .meter-badge__text{font-size:12px;}
   .official-btn{font-size:12px;}
-  .song-selector{max-height:37vh;}
+
+  .song-selector.is-open{
+    max-height:37vh;
+  }
 
   .song-item-meta{
     max-width:calc(100vw - 190px);
@@ -959,6 +1021,43 @@ a:focus-visible{
   <!-- MUSIC AREA -->
   <main class="music-area">
 
+    <!-- SONG SELECTOR (closed by default) -->
+    <section class="song-selector" id="songSelector">
+
+      <div class="song-selector-header">
+        <div class="song-selector-title">
+          <span class="song-selector-title-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"/>
+            </svg>
+          </span>
+          Playlist
+        </div>
+        <span class="song-count" id="songCount">30 SONGS</span>
+      </div>
+
+      <div class="song-list" id="songList"></div>
+
+    </section>
+
+    <!-- PLAYLIST TOGGLE BUTTON -->
+    <button
+      class="playlist-toggle-btn"
+      id="playlistToggleBtn"
+      type="button"
+      aria-label="Toggle Playlist"
+    >
+      <svg
+        id="toggleIcon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M3 6h18M3 12h18M3 18h18"/>
+      </svg>
+      <span id="toggleLabel">गाने देखें</span>
+    </button>
 
     <!-- PLAYER -->
     <section class="player">
@@ -997,15 +1096,11 @@ a:focus-visible{
       </div>
 
       <div class="meter-strip">
-
         <span class="meter-digits" id="timeCurrent">0:00</span>
-
         <div class="meter-track" id="seekTrack" role="slider" aria-label="Song progress">
           <div class="meter-track__fill" id="seekFill"></div>
         </div>
-
         <span class="meter-digits" id="timeDuration">0:00</span>
-
       </div>
 
       <div class="player__source-note" id="sourceNote">LOCAL PLAYLIST</div>
@@ -1054,7 +1149,7 @@ a:focus-visible{
   "use strict";
 
   /* =====================================================
-     SONGS LIST
+     SONGS
   ====================================================== */
 
   var SONGS = [
@@ -1211,14 +1306,14 @@ a:focus-visible{
   ];
 
   /* =====================================================
-     PLAYER STATE
+     STATE
   ====================================================== */
 
   var currentIndex = 0;
   var isPlaying    = false;
 
   /* =====================================================
-     AUDIO ELEMENT
+     AUDIO
   ====================================================== */
 
   var audio = document.createElement("audio");
@@ -1229,22 +1324,25 @@ a:focus-visible{
   document.body.appendChild(audio);
 
   /* =====================================================
-     DOM ELEMENTS
+     ELEMENTS
   ====================================================== */
 
-  var playerTitle  = document.getElementById("playerTitle");
-  var playerArtist = document.getElementById("playerArtist");
-  var btnPlay      = document.getElementById("btnPlay");
-  var btnPrev      = document.getElementById("btnPrev");
-  var btnNext      = document.getElementById("btnNext");
-  var iconPlay     = document.getElementById("iconPlay");
-  var timeCurrent  = document.getElementById("timeCurrent");
-  var timeDuration = document.getElementById("timeDuration");
-  var seekTrack    = document.getElementById("seekTrack");
-  var seekFill     = document.getElementById("seekFill");
-  var sourceNote   = document.getElementById("sourceNote");
-  var songList     = document.getElementById("songList");
-  var songCount    = document.getElementById("songCount");
+  var playerTitle       = document.getElementById("playerTitle");
+  var playerArtist      = document.getElementById("playerArtist");
+  var btnPlay           = document.getElementById("btnPlay");
+  var btnPrev           = document.getElementById("btnPrev");
+  var btnNext           = document.getElementById("btnNext");
+  var iconPlay          = document.getElementById("iconPlay");
+  var timeCurrent       = document.getElementById("timeCurrent");
+  var timeDuration      = document.getElementById("timeDuration");
+  var seekTrack         = document.getElementById("seekTrack");
+  var seekFill          = document.getElementById("seekFill");
+  var sourceNote        = document.getElementById("sourceNote");
+  var songList          = document.getElementById("songList");
+  var songCount         = document.getElementById("songCount");
+  var songSelector      = document.getElementById("songSelector");
+  var playlistToggleBtn = document.getElementById("playlistToggleBtn");
+  var toggleLabel       = document.getElementById("toggleLabel");
 
   /* =====================================================
      ICONS
@@ -1259,7 +1357,7 @@ a:focus-visible{
 
   function formatTime(s){
     s = Math.max(0, Math.floor(s || 0));
-    var m = Math.floor(s / 60);
+    var m   = Math.floor(s / 60);
     var sec = s % 60;
     return m + ":" + (sec < 10 ? "0" : "") + sec;
   }
@@ -1296,7 +1394,7 @@ a:focus-visible{
       var btn = document.createElement("button");
       btn.type = "button";
       btn.className = "song-item";
-      btn.setAttribute("aria-label", "Play " + song.title);
+      btn.setAttribute("aria-label","Play " + song.title);
 
       var num = document.createElement("span");
       num.className = "song-number";
@@ -1374,9 +1472,9 @@ a:focus-visible{
     audio.load();
 
     updateSongInfo();
-    timeCurrent.textContent = "0:00";
+    timeCurrent.textContent  = "0:00";
     timeDuration.textContent = "0:00";
-    seekFill.style.width = "0%";
+    seekFill.style.width     = "0%";
     isPlaying = false;
     updatePlayIcon();
 
@@ -1437,6 +1535,16 @@ a:focus-visible{
   btnPrev.addEventListener("click", previousSong);
 
   /* =====================================================
+     PLAYLIST TOGGLE
+  ====================================================== */
+
+  playlistToggleBtn.addEventListener("click", function(){
+    var isOpen = songSelector.classList.toggle("is-open");
+    playlistToggleBtn.classList.toggle("is-open", isOpen);
+    toggleLabel.textContent = isOpen ? "बंद करें" : "गाने देखें";
+  });
+
+  /* =====================================================
      AUDIO EVENTS
   ====================================================== */
 
@@ -1493,7 +1601,11 @@ a:focus-visible{
   ====================================================== */
 
   document.addEventListener("keydown", function(e){
-    if(e.code === "Space" && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA"){
+    if(
+      e.code === "Space" &&
+      e.target.tagName !== "INPUT" &&
+      e.target.tagName !== "TEXTAREA"
+    ){
       e.preventDefault();
       if(isPlaying){ pauseSong(); } else { playSong(); }
     }
@@ -1552,18 +1664,15 @@ a:focus-visible{
 
 
 /* =====================================================
-   ATTENDANCE SYSTEM  (separate IIFE — outside player)
+   ATTENDANCE SYSTEM
 ====================================================== */
 
 (function(){
-
   "use strict";
 
-  /* ---- YOUR GOOGLE APPS SCRIPT URL ---- */
   var SHEET_URL = "https://script.google.com/macros/s/AKfycbwHC2nW9eoXxOzX37uD-4c58be6C0AsyeeLs9f5xecQvKdg6Gz44k6UggjEfqotyV-n/exec";
-
-  var ATT_KEY  = "auto_ricksha_attended_v1";
-  var VID_KEY  = "auto_rick_vid";
+  var ATT_KEY   = "auto_ricksha_attended_v1";
+  var VID_KEY   = "auto_rick_vid";
 
   var attWrap    = document.getElementById("attWrap");
   var attBtn     = document.getElementById("attBtn");
@@ -1576,7 +1685,6 @@ a:focus-visible{
   var attHeadline= document.getElementById("attHeadline");
   var attSubtext = document.getElementById("attSubtext");
 
-  /* Rotating messages */
   var messages = [
     {
       emoji:"🎵",
@@ -1600,7 +1708,6 @@ a:focus-visible{
     }
   ];
 
-  /* Unique visitor ID */
   function getVisitorId(){
     var id = localStorage.getItem(VID_KEY);
     if(!id){
@@ -1618,34 +1725,26 @@ a:focus-visible{
     localStorage.setItem(ATT_KEY, "1");
   }
 
-  /* Send data to Google Sheet
-     Using no-cors so browser does not block the request.
-     Response will be opaque but data still reaches the sheet. */
   function sendAttendance(){
     var payload = JSON.stringify({
       visitorId : getVisitorId(),
-      device    : navigator.userAgent.slice(0, 120)
+      device    : navigator.userAgent.slice(0,120)
     });
-
     if(window.fetch){
       fetch(SHEET_URL, {
         method : "POST",
         mode   : "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type":"application/json"},
         body   : payload
-      }).catch(function(){
-        /* silent — local record already saved */
-      });
+      }).catch(function(){});
     }
   }
 
-  /* Toast */
   function showToast(){
     attToast.classList.add("show");
     setTimeout(function(){ attToast.classList.remove("show"); }, 3800);
   }
 
-  /* Button → done state */
   function setBtnDone(){
     attBtn.classList.add("done");
     attBtn.innerHTML = "✅<br>हाज़िर";
@@ -1653,7 +1752,6 @@ a:focus-visible{
     if(attLabel){ attLabel.textContent = "Already checked in!"; }
   }
 
-  /* Open popup with random message */
   function openPopup(){
     var m = messages[Math.floor(Math.random() * messages.length)];
     attEmoji.textContent    = m.emoji;
@@ -1666,7 +1764,6 @@ a:focus-visible{
     attOverlay.classList.remove("show");
   }
 
-  /* Events */
   attConfirm.addEventListener("click", function(){
     markAttended();
     sendAttendance();
@@ -1689,11 +1786,10 @@ a:focus-visible{
     if(e.key === "Escape"){ closePopup(); }
   });
 
-  /* ---- Init ---- */
+  /* Init */
   if(hasAttended()){
     setBtnDone();
   } else {
-    /* Auto-show after 8 s */
     setTimeout(function(){
       if(!hasAttended()){ openPopup(); }
     }, 8000);
